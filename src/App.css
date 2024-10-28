@@ -36,3 +36,25 @@
     transform: rotate(360deg);
   }
 }
+
+@font-face {
+  font-family: "Inter";
+  src: local("InterRegular"),
+   url("./../src/Utils/Inter,Public_Sans,Urbanist/Inter/static/Inter_28pt-Regular.ttf") format("truetype");
+ }
+
+ @font-face {
+  font-family: "Poppins";
+  src: local("PoppinsRegular"),
+   url("./../src/Utils/Poppins/Poppins-Regular.ttf") format("truetype");
+ }
+ @font-face {
+  font-family: "Roboto";
+  src: local("RobotoRegular"),
+   url("./../src/Utils/Roboto/Roboto-Regular.ttf") format("truetype");
+ }
+ @font-face {
+  font-family: "Sans";
+  src: local("DMSansRegular"),
+   url("./../src/Utils/DM_Sans/static/DMSans_24pt-Regular.ttf") format("truetype");
+ }
