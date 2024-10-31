@@ -2,6 +2,7 @@ import logo from './logo.svg';
 import './App.css';
 import Quiz from './screens/QuestionAnswer';
 import { Route, Routes } from 'react-router-dom';
+import '@coreui/coreui/dist/css/coreui.min.css'
 // import { ToastContainer } from 'react-toastify';
 
 function App() {

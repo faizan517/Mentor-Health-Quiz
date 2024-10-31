@@ -1,10 +1,10 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { CButton, CCol, CContainer, CRow } from '@coreui/react'
 
 import axios from 'axios'
 import { toast } from 'react-toastify'
 // import 'react-tabs-scrollable/dist/rts.css'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import Info from '../../components/Info'
 import TabsComponent from '../../components/Tabs'
 import { Fonts } from '../../Utils/Fonts'
@@ -207,6 +207,7 @@ const styles = {
   },
 }
 const Quiz = (props) => {
+  const { slug } = useParams()
   const { isActive, styling, isReport, scroll } = props
   const [responses, setResponses] = useState({}) // To store form responses
   const [totalMarks, setTotalMarks] = useState(null) // To store calculated marks
@@ -215,90 +216,127 @@ const Quiz = (props) => {
   const [personalInfo, setPersonalInfo] = useState({}) // To store personal info
   const [personalInfoSubmitted, setPersonalInfoSubmitted] = useState(false) // To track if personal info is submitted
   const [errors, setErrors] = useState({}) // Store validation errors
+const API_BASE_URL = 'http://localhost:5000/api'
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const isMobile = window.innerWidth <= 767 // Mobile screen check
 
   // Function to handle personal info input change in the Info component
+  const handleFetchError = (error) => {
+    const message = error.response
+      ? error.response.data.message
+      : error.request
+        ? 'No response received from server.'
+        : 'Error: ' + error.message
+    toast.error(message)
+  }
+
   const handlePersonalInfoChange = (field, value) => {
+    console.log('Change', field, value)
     setPersonalInfo((prev) => ({ ...prev, [field]: value }))
   }
 
-  // Function to handle form input change
   const handleInputChange = (field, value) => {
+    console.log('Change', field, value)
     setResponses((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handlePersonalInfoSubmit = async () => {
-    try {
-      const response = await axios.post(
-        'https://your-personal-info-api-endpoint.com/api/submit',
-        personalInfo,
-      )
-      toast.success('Login successful!')
-      console.log('Personal info submitted:', response.data)
-      setPersonalInfoSubmitted(true) // Mark personal info as submitted
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Login failed, please try again')
-      console.error('Error submitting personal info:', error)
+  const validateTab = () => {
+    const currentSection = formStructure[currentTab]
+    let valid = true
+    let errorMessages = {}
+
+    if (currentTab === 0) {
+      if (!personalInfo.name) {
+        valid = false
+        errorMessages.name = 'Name is required.'
+      }
+      if (!personalInfo.email) {
+        valid = false
+        errorMessages.email = 'Email is required.'
+      }
+    } else {
+      currentSection.questions.forEach((question) => {
+        if (question.required && !responses[question.id]) {
+          valid = false
+          errorMessages[question.id] = `${question.questionText} is required.`
+        }
+      })
     }
+
+    setErrors(errorMessages)
+    return valid
   }
 
-  // Function to handle form submission
+  const handlePersonalInfoSubmit = async () => {
+    // try {
+    //   await axios.post(`${API_BASE_URL}/personal-info`, personalInfo)
+    //   toast.success('Personal info submitted successfully!')
+    //   setPersonalInfoSubmitted(true)
+    // } catch (error) {
+    //   toast.error('Failed to submit personal info')
+    // }
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     setIsSubmitted(true)
-    let marks = 0
+    setIsSubmitting(true)
 
-    // Calculate marks for form questions
+    if (!validateTab()) {
+      setIsSubmitting(false)
+      return
+    }
+
+    let marks = 0
     formStructure.forEach((section) => {
       section.questions.forEach((question) => {
-        const response = responses[question.id]
-
+        const response = responses[question.questionText]
         if (question.questionType === 'mcq' && response) {
-          marks += response // MCQ marks
+          marks += response
         } else if (question.questionType === 'multicheck' && response) {
-          marks += response.reduce((sum, mark) => sum + mark, 0) // Sum multicheck marks
+          marks += response.reduce((sum, mark) => sum + mark, 0)
         } else if (question.questionType === 'text' && response) {
-          marks += question.marks // Assign full marks for text response
+          marks += question.marks
         }
       })
     })
 
-    setTotalMarks(marks)
-    console.log('Total Marks:', marks)
-    console.log('Responses:', responses)
+    const health_assessment = {
+      ...responses,
+      marks,
+    }
 
-    // API call to submit the form data
     try {
-      const response = await axios.post('https://your-form-api-endpoint.com/api/submit', responses)
-      toast.success('Login successful!')
-      console.log('Form data submitted:', response.data)
+      await axios.post(`${API_BASE_URL}/assessment/submitAssessment/${slug}`, {
+        employee_info: JSON.stringify(personalInfo),
+        health_assessment: JSON.stringify(health_assessment),
+      })
+      toast.success('Form submitted successfully!')
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Login failed, please try again')
-      console.error('Error submitting form:', error)
+      toast.error('Failed to submit form')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  // Handle tab click to proceed to the next section
   const handleTabClick = async (index) => {
-    // If moving from personal info (first tab) to the next, submit personal info
     if (currentTab === 0 && !personalInfoSubmitted) {
       await handlePersonalInfoSubmit()
     }
     setCurrentTab(index)
     window.scrollTo({ top: 400, behavior: 'smooth' })
   }
-  const [activeTab, setActiveTab] = useState(0) // Manage active tab state
-  const navigate = useNavigate()
 
-  function handleClick() {
-    navigate('/')
-  }
 
-  const onTabClick = (e, index) => {
-    console.log(e)
-    setActiveTab(index)
-  }
+  // function handleClick() {
+  //   Navigate('/')
+  // }
+  
+  useEffect(() => {
+    console.log(personalInfo)
+    console.log(responses)
+  }, [personalInfo, responses])
 
   return (
     <CContainer style={styles.formContainer}>
@@ -326,7 +364,7 @@ const Quiz = (props) => {
           <img
             src={Images.logoBig}
             style={{ width: isMobile ? '50%' : '100%', height: 'auto', maxWidth: '400px' }}
-            onClick={handleClick}
+            // onClick={handleClick}
           />
         </CCol>
       </CRow>
@@ -373,7 +411,7 @@ const Quiz = (props) => {
       {!isSubmitted ? (
         <CContainer
           style={{
-            width: isMobile ? '90vw' : '',
+            // width: isMobile ? '90vw' : '',
             boxShadow: '4px 4px 15px 15px rgba(0, 0, 0, 0.05)',
             borderWidth: 0,
             borderRadius: 10,
@@ -536,3 +574,289 @@ const Quiz = (props) => {
 }
 
 export default Quiz
+
+// import Info from '../Info' // Personal info component
+// import TabsComponent from '../Tabs'
+// import formStructure from './formStructure'
+// import axios from 'axios'
+// import { toast } from 'react-toastify'
+// import { Fonts } from '../../utils/Fonts'
+// import Color from '../../utils/Color'
+// import Images from '../../utils/Images'
+// import { CButton, CContainer, CRow, CCol } from '@coreui/react'
+// import React, { useState, useEffect } from 'react'
+// import { useParams } from 'react-router-dom'
+// Define your API base URL
+// const API_BASE_URL = 'http://localhost:5000/api'
+
+// const DynamicForm = (props) => {
+//   const { styling, isReport } = props
+//   const { slug } = useParams()
+
+  // const [formStructure, setFormStructure] = useState([])
+  // const [responses, setResponses] = useState({})
+  // const [currentTab, setCurrentTab] = useState(0)
+  // const [isSubmitted, setIsSubmitted] = useState(false)
+  // const [personalInfo, setPersonalInfo] = useState({})
+  // const [questionText, setQuestionText] = useState({})
+
+  // const [personalInfoSubmitted, setPersonalInfoSubmitted] = useState(false)
+  // const [errors, setErrors] = useState({})
+  // const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const isMobile = window.innerWidth <= 767
+
+  // Fetch form data based on company slug
+  // useEffect(() => {
+  //   const fetchFormData = async () => {
+  //     try {
+  //       const slug = window.location.pathname.split('/').pop()
+  //       const response = await axios.get(`${API_BASE_URL}/formdata/url/${slug}`)
+  //       setFormStructure(response.data)
+  //     } catch (error) {
+  //       handleFetchError(error)
+  //     }
+  //   }
+  //   fetchFormData()
+  // }, [])
+
+//   const handleFetchError = (error) => {
+//     const message = error.response
+//       ? error.response.data.message
+//       : error.request
+//         ? 'No response received from server.'
+//         : 'Error: ' + error.message
+//     toast.error(message)
+//   }
+
+//   const handlePersonalInfoChange = (field, value) => {
+//     console.log('Change', field, value)
+//     setPersonalInfo((prev) => ({ ...prev, [field]: value }))
+//   }
+
+//   const handleInputChange = (field, value) => {
+//     console.log('Change', field, value)
+//     setResponses((prev) => ({ ...prev, [field]: value }))
+//   }
+
+//   const validateTab = () => {
+//     const currentSection = formStructure[currentTab]
+//     let valid = true
+//     let errorMessages = {}
+
+//     if (currentTab === 0) {
+//       if (!personalInfo.name) {
+//         valid = false
+//         errorMessages.name = 'Name is required.'
+//       }
+//       if (!personalInfo.email) {
+//         valid = false
+//         errorMessages.email = 'Email is required.'
+//       }
+//     } else {
+//       currentSection.questions.forEach((question) => {
+//         if (question.required && !responses[question.id]) {
+//           valid = false
+//           errorMessages[question.id] = `${question.questionText} is required.`
+//         }
+//       })
+//     }
+
+//     setErrors(errorMessages)
+//     return valid
+//   }
+
+//   const handlePersonalInfoSubmit = async () => {
+//     // try {
+//     //   await axios.post(`${API_BASE_URL}/personal-info`, personalInfo)
+//     //   toast.success('Personal info submitted successfully!')
+//     //   setPersonalInfoSubmitted(true)
+//     // } catch (error) {
+//     //   toast.error('Failed to submit personal info')
+//     // }
+//   }
+
+//   const handleSubmit = async (event) => {
+//     event.preventDefault()
+//     setIsSubmitted(true)
+//     setIsSubmitting(true)
+
+//     if (!validateTab()) {
+//       setIsSubmitting(false)
+//       return
+//     }
+
+//     let marks = 0
+//     formStructure.forEach((section) => {
+//       section.questions.forEach((question) => {
+//         const response = responses[question.questionText]
+//         if (question.questionType === 'mcq' && response) {
+//           marks += response
+//         } else if (question.questionType === 'multicheck' && response) {
+//           marks += response.reduce((sum, mark) => sum + mark, 0)
+//         } else if (question.questionType === 'text' && response) {
+//           marks += question.marks
+//         }
+//       })
+//     })
+
+//     const health_assessment = {
+//       ...responses,
+//       marks,
+//     }
+
+//     try {
+//       await axios.post(`${API_BASE_URL}/assessment/submitAssessment/${slug}`, {
+//         employee_info: JSON.stringify(personalInfo),
+//         health_assessment: JSON.stringify(health_assessment),
+//       })
+//       toast.success('Form submitted successfully!')
+//     } catch (error) {
+//       toast.error('Failed to submit form')
+//     } finally {
+//       setIsSubmitting(false)
+//     }
+//   }
+
+//   const handleTabClick = async (index) => {
+//     if (currentTab === 0 && !personalInfoSubmitted) {
+//       await handlePersonalInfoSubmit()
+//     }
+//     setCurrentTab(index)
+//     window.scrollTo({ top: 400, behavior: 'smooth' })
+//   }
+
+//   useEffect(() => {
+//     console.log(personalInfo)
+//     console.log(responses)
+//   }, [personalInfo, responses])
+
+//   return (
+//     <CContainer
+//       style={{
+//         width: isMobile ? '90vw' : '',
+//         boxShadow: '4px 4px 15px rgba(0, 0, 0, 0.05)',
+//         borderRadius: 10,
+//         textAlign: 'left',
+//         marginTop: 40,
+//         ...styling,
+//       }}
+//     >
+//       {!isSubmitted ? (
+//         <form onSubmit={handleSubmit}>
+//           <TabsComponent
+//             currentTab={currentTab}
+//             formStructure={formStructure}
+//             handleTabClick={handleTabClick}
+//             isMobile={isMobile}
+//           />
+//           {formStructure.length > 0 && formStructure[currentTab] && (
+//             <div>
+//               {currentTab === 0 && <Info onInputChange={handlePersonalInfoChange} />}
+//               {formStructure[currentTab].questions.map((question) => (
+//                 <div key={question.id} style={{ paddingLeft: 50, marginTop: 10 }}>
+//                   <p style={{ fontWeight: 500, fontSize: 14 }}>{question.questionText}</p>
+//                   {/* Render input based on question type */}
+//                   {question.questionType === 'mcq' && (
+//                     <CCol style={{ display: isMobile ? 'flex' : '', flexDirection: 'column' }}>
+//                       {question.options.map((option, index) => (
+//                         <label key={index}>
+//                           <input
+//                             style={{ marginRight: 10 }}
+//                             type="radio"
+//                             name={`question-${question.id}`}
+//                             value={option.answer}
+//                             onChange={() => handleInputChange(question.questionText, option.marks)}
+//                           />
+//                           {option.answer}
+//                         </label>
+//                       ))}
+//                     </CCol>
+//                   )}
+
+//                   {question.questionType === 'text' && (
+//                     <textarea
+//                       style={{ width: isMobile ? '200px' : '632px' }}
+//                       name={`question-${question.id}`}
+//                       onChange={(e) => handleInputChange(question.id, e.target.value)}
+//                     />
+//                   )}
+
+//                   {question.questionType === 'multicheck' && (
+//                     <CCol
+//                       style={{
+//                         marginTop: 10,
+//                         display: isMobile ? 'flex' : '',
+//                         flexDirection: 'column',
+//                       }}
+//                     >
+//                       {question.options.map((option, index) => (
+//                         <label key={index}>
+//                           <input
+//                             style={{ marginRight: 10 }}
+//                             type="checkbox"
+//                             name={`question-${question.id}`}
+//                             value={option.answer}
+//                             onChange={(e) => {
+//                               const currentMarks = responses[question.id] || []
+//                               handleInputChange(
+//                                 question.questionText,
+//                                 e.target.checked
+//                                   ? [...currentMarks, option.marks]
+//                                   : currentMarks.filter((mark) => mark !== option.marks),
+//                               )
+//                             }}
+//                           />
+//                           {option.answer}
+//                         </label>
+//                       ))}
+//                     </CCol>
+//                   )}
+//                 </div>
+//               ))}
+//             </div>
+//           )}
+
+//           <div className="d-flex justify-content-end">
+//             {currentTab === formStructure.length - 1 ? (
+//               isReport ? (
+//                 <CButton
+//                   style={{ backgroundColor: '#0048ff', color: 'white' }}
+//                   className="mb-3 mt-3"
+//                 >
+//                   PDF
+//                 </CButton>
+//               ) : (
+//                 <CButton
+//                   style={{ backgroundColor: '#0048ff', color: 'white' }}
+//                   type="submit"
+//                   className="mb-3 mt-3"
+//                   disabled={isSubmitting}
+//                 >
+//                   {isSubmitting ? 'Submitting...' : 'Submit'}
+//                 </CButton>
+//               )
+//             ) : (
+//               <CButton
+//                 style={{ backgroundColor: '#0048ff', color: 'white' }}
+//                 type="button"
+//                 onClick={() => handleTabClick(currentTab + 1)}
+//                 className="mb-3 mt-3"
+//               >
+//                 Next
+//               </CButton>
+//             )}
+//           </div>
+//         </form>
+//       ) : (
+//         <CContainer>
+//           <img src={Images.smile} alt="Smiley Face" />
+//           <span>Thank you!</span>
+//           <span>You will receive your assessment form report via email.</span>
+//         </CContainer>
+//       )}
+//     </CContainer>
+//   )
+// }
+
+// export default DynamicForm
