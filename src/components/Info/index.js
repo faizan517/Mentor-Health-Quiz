@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CContainer, CForm, CRow, CCol, CFormLabel, CFormInput, CFormFeedback, CFormSelect } from '@coreui/react';
 import { useForm } from 'react-hook-form';
 import { Fonts } from '../../Utils/Fonts';
@@ -35,6 +35,8 @@ const styles = {
 };
 
 const Info = ({ onInputChange, onInfoSubmit }) => {
+  const [weightInLbs, setWeightInLbs] = useState(null);
+  const [heightInFeet, setHeightInFeet] = useState(null);
   const {
     register,
     handleSubmit,
@@ -45,6 +47,18 @@ const Info = ({ onInputChange, onInfoSubmit }) => {
     onInfoSubmit(data); // Pass data to parent component (DynamicForm) for submission
   };
 
+
+  const handleWeightChange = (e) => {
+    const weightInKg = e.target.value;
+    onInputChange('weight', weightInKg);
+    setWeightInLbs(weightInKg * 2.20462); // Convert kg to lbs
+  };
+
+  const handleHeightChange = (e) => {
+    const heightInCm = e.target.value;
+    onInputChange('height', heightInCm);
+    setHeightInFeet(heightInCm / 30.48); // Convert cm to feet
+  };
   return (
     <CContainer className="my-5">
       <CForm onSubmit={handleSubmit(onSubmit)}>
@@ -141,28 +155,41 @@ const Info = ({ onInputChange, onInfoSubmit }) => {
           </CCol>
         </CRow>
 
+        {/* <CRow className="mb-3"> */}
         <CRow className="mb-3">
-          <CCol md={6} style={styles.inputCon}>
-            <CFormLabel style={styles.title}>Weight (in Kg)</CFormLabel>
-            <CFormInput
-              style={styles.input}
-              type="number"
-              {...register('weight', { required: 'Weight is required' })}
-              onChange={(e) => onInputChange('weight', e.target.value)}
-            />
-            <CFormFeedback invalid>{errors.weight?.message}</CFormFeedback>
-          </CCol>
-          <CCol md={6} style={styles.inputCon}>
-            <CFormLabel style={styles.title}>Height (in cm)</CFormLabel>
-            <CFormInput
-              style={styles.input}
-              type="number"
-              {...register('height', { required: 'Height is required' })}
-              onChange={(e) => onInputChange('height', e.target.value)}
-            />
-            {/* <CFormFeedback invalid>{errors.height?.message}</CFormFeedback> */}
-          </CCol>
-        </CRow>
+      <CCol md={6} style={styles.inputCon}>
+        <CFormLabel style={styles.title}>Weight (in Kg)</CFormLabel>
+        <CFormInput
+          style={styles.input}
+          type="number"
+          {...register('weight', { required: 'Weight is required' })}
+          onChange={handleWeightChange}
+        />
+        <CFormFeedback invalid>{errors.weight?.message}</CFormFeedback>
+        {weightInLbs && (
+          <div style={{ marginTop: '5px' }}>
+            <strong>{weightInLbs.toFixed(2)} lbs</strong>
+          </div>
+        )}
+      </CCol>
+      <CCol md={6} style={styles.inputCon}>
+        <CFormLabel style={styles.title}>Height (in cm)</CFormLabel>
+        <CFormInput
+          style={styles.input}
+          type="number"
+          {...register('height', { required: 'Height is required' })}
+          onChange={handleHeightChange}
+        />
+        {/* <CFormFeedback invalid>{errors.height?.message}</CFormFeedback> */}
+        {heightInFeet && (
+          <div style={{ marginTop: '5px' }}>
+            <strong>{heightInFeet.toFixed(2)} feet</strong>
+          </div>
+        )}
+      </CCol>
+    </CRow>
+{/* </CRow> */}
+
       </CForm>
     </CContainer>
   );
