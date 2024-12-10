@@ -11,3 +11,9 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Add this to your CSS or style section */
+.MuiTab-root.Mui-selected {
+  color: #fff !important;  /* Active tab text color */
+  background-color: #007bff !important;  /* Active tab background */
+}
